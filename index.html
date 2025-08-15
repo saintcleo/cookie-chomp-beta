@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Cookie Chomp Tycoon — Stage 1 (Standalone)</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0f14; --ink:#e7f2ff; --muted:#9fb3c8; --acc1:#7ef2c4; --acc2:#ffd884;
+    --gold:#ffd76d; --chip:#6b3a1e; --cookie:#b3733a; --edge:#0a0e13;
+  }
+  html,body{height:100%}
+  body{
+    margin:0;background:linear-gradient(#1a2330,#0b0f14 40%);
+    color:var(--ink);font-family:'Press Start 2P', monospace;
+    image-rendering: pixelated; overflow:hidden;
+  }
+  .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+  header{
+    padding:10px 12px;background:#0f1520;border-bottom:2px solid var(--edge);
+    display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap
+  }
+  .stat{font-size:12px;color:var(--muted)} .stat b{color:var(--ink)}
+
+  .main{
+    position:relative;overflow:hidden;isolation:isolate;
+    background:
+      linear-gradient(#f6dcb5,#f0cfa0 160px,#e9c894 160px,#e0bd85 162px) no-repeat,
+      radial-gradient(circle at 50% 120%, rgba(255,255,255,0.05), transparent 55%);
+    background-size:100% 162px,100% 100%;
+  }
+  .tiles{position:absolute;inset:0;opacity:.12}
+  .tiles::before{
+    content:"";position:absolute;inset:0;
+    background:
+      repeating-linear-gradient(90deg,#000 0 1px,transparent 1px 64px),
+      repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 64px);
+    transform:translateY(162px);mix-blend-mode:soft-light;
+  }
+
+  /* Monster container */
+  .monsterWrap{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:22px}
+  svg{width:min(92vw,720px);height:auto;image-rendering:pixelated}
+
+  .float{position:absolute;font-size:12px;color:var(--gold);text-shadow:0 2px 0 #000;pointer-events:none}
+  .crumb{position:absolute;width:6px;height:6px;background:var(--cookie);box-shadow:2px 2px 0 #0006;pointer-events:none}
+
+  /* Cookie Rain */
+  .drop{
+    position:absolute;width:28px;height:28px;cursor:pointer;image-rendering:pixelated;
+    background:radial-gradient(circle at 50% 40%,#d39c64 0 8px,#b3733a 9px), var(--cookie);
+    border:2px solid #6b3a1e; box-shadow:0 2px 0 #0007; border-radius:4px;
+  }
+
+  /* Shop */
+  .shop{display:flex;gap:8px;align-items:center;justify-content:center;background:#0f1520;border-top:2px solid var(--edge);padding:8px;flex-wrap:wrap}
+  button.pixel{
+    font-family:'Press Start 2P';font-size:11px;padding:10px 12px;color:#0b0f14;
+    background:linear-gradient(#7ef2c4,#56d6ac);border:0;box-shadow:0 3px 0 #2b8b73;cursor:pointer
+  }
+  button.pixel.alt{background:linear-gradient(#ffd884,#ffcf70);box-shadow:0 3px 0 #c19432}
+  button.pixel.danger{background:linear-gradient(#ff958f,#ff6b64);box-shadow:0 3px 0 #a33c36}
+  button.pixel:disabled{filter:grayscale(70%);opacity:.7;cursor:not-allowed}
+  .badge{font-size:10px;color:var(--muted)}
+  .toast{position:fixed;left:50%;top:74px;transform:translateX(-50%);background:#0f1520;border:2px solid var(--edge);padding:6px 10px;font-size:11px}
+  @media (max-width:420px){ .badge{display:none} }
+
+  /* Chomp animation helpers (we animate via JS by tweaking SVG parts) */
+  .hint{position:absolute;top:74px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="stat">🍪 Crumbs: <b id="crumbs">0</b></div>
+    <div class="stat">CPS: <b id="cps">0</b></div>
+    <div class="stat">Multiplier: <b id="mult">x1</b></div>
+  </header>
+
+  <div class="main" id="main">
+    <div class="tiles"></div>
+    <div class="hint">Tap the Monster to CHOMP!</div>
+
+    <!-- BIG BLUE PIXEL MONSTER (original character, cookie-chompy energy) -->
+    <div class="monsterWrap">
+      <svg id="monster" viewBox="0 0 128 128" tabindex="0" role="button" aria-label="Tap to chomp">
+        <!-- body -->
+        <g id="g-body">
+          <rect x="12" y="40" width="104" height="76" fill="#1676a5" />
+          <rect x="20" y="28" width="88" height="24" fill="#1676a5" />
+          <!-- shading blocks -->
+          <rect x="20" y="44" width="20" height="12" fill="#14658e" />
+          <rect x="40" y="60" width="16" height="10" fill="#14658e" />
+          <rect x="84" y="68" width="18" height="12" fill="#14658e" />
+          <!-- arms -->
+          <rect x="4" y="64" width="20" height="20" fill="#1676a5" />
+          <rect x="104" y="64" width="20" height="20" fill="#1676a5" />
+        </g>
+        <!-- head -->
+        <g id="g-head">
+          <rect x="24" y="10" width="80" height="26" fill="#1676a5"/>
+          <!-- fuzzy top bumps -->
+          <rect x="18" y="8" width="10" height="6" fill="#1676a5"/>
+          <rect x="32" y="6" width="10" height="6" fill="#1676a5"/>
+          <rect x="88" y="6" width="10" height="6" fill="#1676a5"/>
+          <rect x="100" y="8" width="10" height="6" fill="#1676a5"/>
+          <!-- eyes -->
+          <rect x="34" y="10" width="16" height="12" fill="#f5f7ff"/>
+          <rect x="78" y="10" width="16" height="12" fill="#f5f7ff"/>
+          <rect x="44" y="16" width="6" height="6" fill="#121214"/>
+          <rect x="84" y="16" width="6" height="6" fill="#121214"/>
+          <!-- mouth (we animate height for "open") -->
+          <rect id="mouth" x="36" y="26" width="56" height="12" fill="#0a0a0c"/>
+        </g>
+        <!-- cookie in hand (we tween it towards mouth on click) -->
+        <g id="g-cookie">
+          <rect x="24" y="86" width="20" height="16" fill="#b3733a"></rect>
+          <rect x="28" y="88" width="4" height="4" fill="#6b3a1e"></rect>
+          <rect x="36" y="94" width="4" height="4" fill="#6b3a1e"></rect>
+          <rect x="32" y="90" width="4" height="4" fill="#6b3a1e"></rect>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="shop">
+    <button class="pixel" id="buyAuto">Auto‑Plate (15) +0.5 cps</button>
+    <span class="badge">Owned: <span id="autoCount">0</span></span>
+
+    <button class="pixel" id="buyOven">Oven (80) +2 cps</button>
+    <span class="badge">Owned: <span id="ovenCount">0</span></span>
+
+    <button class="pixel alt" id="doubleDunk">Double Dunk (60) x2 for 10s</button>
+    <button class="pixel danger" id="chipStorm">Chip Storm (90) +4 per click 8s</button>
+  </div>
+</div>
+
+<script>
+  // ---------- State ----------
+  const S = { crumbs:0, cps:0, mult:1, bonusClick:0, auto:0, oven:0,
+              costs:{auto:15, oven:80, dunk:60, storm:90}, dunkCD:0, stormCD:0 };
+  const $ = s=>document.querySelector(s);
+  const main = $('#main'), monster = $('#monster');
+  const mouth = document.getElementById('mouth');
+  const gCookie = document.getElementById('g-cookie');
+  const crumbsEl = $('#crumbs'), cpsEl = $('#cps'), multEl = $('#mult');
+  const autoCount = $('#autoCount'), ovenCount = $('#ovenCount');
+  const bAuto = $('#buyAuto'), bOven = $('#buyOven'), bDunk = $('#doubleDunk'), bStorm = $('#chipStorm');
+
+  // Load save
+  try{ const save = JSON.parse(localStorage.getItem('cct_standalone_v1')||"null"); if(save) Object.assign(S, save); }catch(e){}
+  function save(){ localStorage.setItem('cct_standalone_v1', JSON.stringify(S)); }
+
+  function updateUI(){
+    crumbsEl.textContent = Math.floor(S.crumbs);
+    cpsEl.textContent = S.cps.toFixed(1);
+    multEl.textContent = 'x'+S.mult.toFixed(1).replace(/\.0$/,'');
+    autoCount.textContent = S.auto;
+    ovenCount.textContent = S.oven;
+    bAuto.textContent = `Auto‑Plate (${S.costs.auto}) +0.5 cps`;
+    bOven.textContent = `Oven (${S.costs.oven}) +2 cps`;
+    bDunk.textContent = S.dunkCD>0 ? `Double Dunk (${Math.ceil(S.dunkCD)}s)` : `Double Dunk (${S.costs.dunk}) x2 10s`;
+    bStorm.textContent = S.stormCD>0 ? `Chip Storm (${Math.ceil(S.stormCD)}s)` : `Chip Storm (${S.costs.storm}) +4 click 8s`;
+    bAuto.disabled   = S.crumbs < S.costs.auto;
+    bOven.disabled   = S.crumbs < S.costs.oven;
+    bDunk.disabled   = S.crumbs < S.costs.dunk || S.dunkCD>0;
+    bStorm.disabled  = S.crumbs < S.costs.storm || S.stormCD>0;
+  }
+  updateUI();
+
+  // ---------- Effects ----------
+  function floatText(txt,x,y){
+    const d = document.createElement('div'); d.className='float'; d.textContent=txt;
+    d.style.left=(x-10)+'px'; d.style.top=(y-10)+'px'; d.style.opacity='1'; main.appendChild(d);
+    const start=performance.now();
+    (function step(t){const k=Math.min(1,(t-start)/800); d.style.transform=`translateY(${-40*k}px)`; d.style.opacity=(1-k);
+      if(k<1) requestAnimationFrame(step); else d.remove();})(start);
+  }
+  function crumbsBurst(x,y){
+    for(let i=0;i<8;i++){
+      const c=document.createElement('div'); c.className='crumb'; c.style.left=x+'px'; c.style.top=y+'px'; main.appendChild(c);
+      const ang=Math.random()*Math.PI*2, sp=40+Math.random()*70; const start=performance.now();
+      (function step(t){const k=Math.min(1,(t-start)/700);
+        const dx=Math.cos(ang)*sp*k; const dy=Math.sin(ang)*sp*k + 40*k*k;
+        c.style.transform=`translate(${dx}px,${dy}px)`; c.style.opacity=(1-k); if(k<1) requestAnimationFrame(step); else c.remove();})(start);
+    }
+  }
+
+  // ---------- Chomp (click the SVG) ----------
+  let chompLock=false;
+  function chomp(x,y){
+    if(chompLock) return;
+    chompLock=true;
+
+    const gain = Math.round((1 + S.bonusClick) * S.mult);
+    S.crumbs += gain;
+
+    // Animate mouth and cookie-to-mouth tween
+    const openH = 24, closedH = 12;
+    mouth.setAttribute('height', openH);
+    gCookie.style.transition = 'transform 0.18s steps(3, end)';
+    gCookie.style.transformOrigin = '50% 50%';
+    gCookie.style.transform = 'translate(28px,-48px)';
+
+    floatText('+'+gain, x, y);
+    crumbsBurst(x,y);
+    updateUI(); save(); blip();
+
+    setTimeout(()=>{
+      mouth.setAttribute('height', closedH);
+      gCookie.style.transform = 'translate(0,0)';
+      setTimeout(()=>{ chompLock=false; }, 120);
+    }, 180);
+  }
+
+  monster.addEventListener('pointerdown', e=> chomp(e.clientX, e.clientY));
+  window.addEventListener('keydown', e=>{
+    if(e.code==='Space' || e.code==='Enter'){
+      const r=main.getBoundingClientRect();
+      chomp(r.left+r.width*0.5, r.top+r.height*0.6);
+    }
+  });
+
+  // ---------- Shop ----------
+  function recalcCPS(){ S.cps = S.auto*0.5 + S.oven*2; }
+  bAuto.addEventListener('click',()=>{
+    if(S.crumbs>=S.costs.auto){
+      S.crumbs-=S.costs.auto; S.auto++; S.costs.auto=Math.ceil(S.costs.auto*1.6);
+      recalcCPS(); updateUI(); save(); pop('Bought Auto‑Plate +0.5 cps');
+    }
+  });
+  bOven.addEventListener('click',()=>{
+    if(S.crumbs>=S.costs.oven){
+      S.crumbs-=S.costs.oven; S.oven++; S.costs.oven=Math.ceil(S.costs.oven*1.7);
+      recalcCPS(); updateUI(); save(); pop('Bought Oven +2 cps');
+    }
+  });
+  bDunk.addEventListener('click',()=>{
+    if(S.crumbs>=S.costs.dunk && S.dunkCD<=0){
+      S.crumbs-=S.costs.dunk; S.mult*=2; S.dunkCD=30; updateUI(); save();
+      pop('Double Dunk x2!'); setTimeout(()=>{ S.mult/=2; updateUI(); pop('Double Dunk ended'); }, 10000);
+    }
+  });
+  bStorm.addEventListener('click',()=>{
+    if(S.crumbs>=S.costs.storm && S.stormCD<=0){
+      S.crumbs-=S.costs.storm; S.bonusClick+=4; S.stormCD=35; updateUI(); save();
+      pop('Chip Storm +4 per click!'); setTimeout(()=>{ S.bonusClick-=4; updateUI(); pop('Chip Storm ended'); }, 8000);
+    }
+  });
+
+  // ---------- Idle tick + Cookie Rain ----------
+  recalcCPS(); updateUI();
+  let last = performance.now(); let rainTimer=10; // first rain appears soon
+  function loop(now){
+    const dt=(now-last)/1000; last=now;
+    if(S.cps>0){ S.crumbs += S.cps*dt; }
+    if(S.dunkCD>0)  S.dunkCD=Math.max(0,S.dunkCD-dt);
+    if(S.stormCD>0) S.stormCD=Math.max(0,S.stormCD-dt);
+    if(S.dunkCD>0 || S.stormCD>0) updateUI();
+
+    rainTimer -= dt;
+    if(rainTimer<=0){ startRainEvent(); rainTimer = 45 + Math.random()*15; }
+
+    crumbsEl.textContent = Math.floor(S.crumbs);
+    cpsEl.textContent = S.cps.toFixed(1);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function startRainEvent(){
+    pop('Cookie Rain! Tap falling cookies!');
+    const duration = 9, start=performance.now();
+    (function spawn(){
+      if(performance.now()-start > duration*1000) return;
+      drop(); setTimeout(spawn, 280);
+    })();
+  }
+
+  function drop(){
+    const d=document.createElement('div'); d.className='drop';
+    const area=main.getBoundingClientRect();
+    const x = 20 + Math.random()*(area.width-40); d.style.left=x+'px'; d.style.top='-30px';
+    main.appendChild(d);
+    const fall = area.height + 40; const speed = 90 + Math.random()*60;
+    const born = performance.now();
+    function step(t){
+      const k = (t-born)/1000; d.style.transform = `translateY(${k*speed}px)`;
+      if(k*speed > fall) { d.remove(); return; }
+      requestAnimationFrame(step);
+    } requestAnimationFrame(step);
+    d.addEventListener('pointerdown', e=>{
+      e.stopPropagation();
+      const add = Math.round(5 * S.mult);
+      S.crumbs += add; floatText('+'+add, e.clientX, e.clientY); d.remove(); blip(880); updateUI(); save();
+    });
+  }
+
+  // ---------- UI helpers + audio ----------
+  function pop(msg){
+    const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(()=>t.remove(), 1600);
+  }
+  let audioCtx;
+  function blip(freq=660){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type='square'; o.frequency.value=freq; g.gain.value=0.03; o.connect(g); g.connect(audioCtx.destination); o.start();
+      setTimeout(()=>{ g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+0.08); o.stop(audioCtx.currentTime+0.09); }, 0);
+    }catch(e){}
+  }
+</script>
+</body>
+</html>
