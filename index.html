@@ -3,33 +3,39 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Cookie Chomp Tycoon — Stage 1 (Standalone)</title>
+<title>Cookie Chomp Tycoon — Stage 2 UI Pass</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0b0f14; --ink:#e7f2ff; --muted:#9fb3c8; --acc1:#7ef2c4; --acc2:#ffd884;
-    --gold:#ffd76d; --chip:#6b3a1e; --cookie:#b3733a; --edge:#0a0e13;
+    --gold:#ffd76d; --chip:#6b3a1e; --cookie:#b3733a; --edge:#0a0e13; --shadow:#0008;
+    --glass:#e9f6ff;
   }
   html,body{height:100%}
   body{
-    margin:0;background:linear-gradient(#1a2330,#0b0f14 40%);
+    margin:0;background:linear-gradient(#1a2330,#0b0f14 45%);
     color:var(--ink);font-family:'Press Start 2P', monospace;
     image-rendering: pixelated; overflow:hidden;
   }
   .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto}
+
+  /* ---------- HUD ---------- */
   header{
     padding:10px 12px;background:#0f1520;border-bottom:2px solid var(--edge);
     display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap
   }
   .stat{font-size:12px;color:var(--muted)} .stat b{color:var(--ink)}
+  .stat .icon{vertical-align:-2px;margin-right:6px}
 
-  .main{
+  /* ---------- World / Kitchen ---------- */
+  .world{
     position:relative;overflow:hidden;isolation:isolate;
     background:
       linear-gradient(#f6dcb5,#f0cfa0 160px,#e9c894 160px,#e0bd85 162px) no-repeat,
       radial-gradient(circle at 50% 120%, rgba(255,255,255,0.05), transparent 55%);
     background-size:100% 162px,100% 100%;
   }
+  /* tiles */
   .tiles{position:absolute;inset:0;opacity:.12}
   .tiles::before{
     content:"";position:absolute;inset:0;
@@ -38,220 +44,287 @@
       repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 64px);
     transform:translateY(162px);mix-blend-mode:soft-light;
   }
+  /* shelf & props (pixel rectangles) */
+  .shelf{position:absolute;left:50%;top:130px;transform:translateX(-50%);width:min(90vw,700px);height:10px;
+         background:#8b5a2b; box-shadow:0 3px 0 #5a3b1c}
+  .jar,.milk,.cookieJar{position:absolute;bottom:10px;image-rendering:pixelated}
+  .jar{width:26px;height:32px;background:#d9edf6;border:2px solid #7aa0b8;left:10%}
+  .jar:after{content:"";position:absolute;top:-8px;left:4px;width:18px;height:8px;background:#b76434;border:2px solid #7a3b1e}
+  .milk{width:28px;height:34px;background:linear-gradient(#ffffff,#cde8ff);border:2px solid #7aa0b8;left:22%}
+  .cookieJar{width:30px;height:34px;background:#f0bb7c;border:2px solid #8a5b2a;left:36%}
+  .cookieJar:after{content:"";position:absolute;top:-10px;left:6px;width:16px;height:10px;background:#b5793d;border:2px solid #7a4a22;transform-origin:left bottom}
+  .pop .cookieJar:after{animation:lid 1s steps(3) 1}
+  @keyframes lid{0%{transform:rotate(0)}40%{transform:rotate(-30deg)}100%{transform:rotate(0)}}
 
-  /* Monster container */
+  /* ambient sparkles */
+  .sparkle{position:absolute;width:4px;height:4px;background:#fff8;border:1px solid #fff;opacity:.7}
+
+  /* ---------- Monster ---------- */
   .monsterWrap{position:absolute;inset:0;display:grid;place-items:end center;padding-bottom:22px}
   svg{width:min(92vw,720px);height:auto;image-rendering:pixelated}
+  .hint{position:absolute;top:74px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted);opacity:.9;transition:opacity .4s}
+  .hint.off{opacity:0}
 
+  /* ---------- Feedback ---------- */
   .float{position:absolute;font-size:12px;color:var(--gold);text-shadow:0 2px 0 #000;pointer-events:none}
   .crumb{position:absolute;width:6px;height:6px;background:var(--cookie);box-shadow:2px 2px 0 #0006;pointer-events:none}
 
-  /* Cookie Rain */
+  /* ---------- Cookie Rain ---------- */
   .drop{
     position:absolute;width:28px;height:28px;cursor:pointer;image-rendering:pixelated;
     background:radial-gradient(circle at 50% 40%,#d39c64 0 8px,#b3733a 9px), var(--cookie);
     border:2px solid #6b3a1e; box-shadow:0 2px 0 #0007; border-radius:4px;
   }
 
-  /* Shop */
-  .shop{display:flex;gap:8px;align-items:center;justify-content:center;background:#0f1520;border-top:2px solid var(--edge);padding:8px;flex-wrap:wrap}
-  button.pixel{
-    font-family:'Press Start 2P';font-size:11px;padding:10px 12px;color:#0b0f14;
-    background:linear-gradient(#7ef2c4,#56d6ac);border:0;box-shadow:0 3px 0 #2b8b73;cursor:pointer
+  /* ---------- Icon Shop ---------- */
+  .shop{
+    display:flex;gap:14px;align-items:center;justify-content:center;background:#0f1520;border-top:2px solid var(--edge);
+    padding:10px 12px;flex-wrap:wrap
   }
-  button.pixel.alt{background:linear-gradient(#ffd884,#ffcf70);box-shadow:0 3px 0 #c19432}
-  button.pixel.danger{background:linear-gradient(#ff958f,#ff6b64);box-shadow:0 3px 0 #a33c36}
-  button.pixel:disabled{filter:grayscale(70%);opacity:.7;cursor:not-allowed}
-  .badge{font-size:10px;color:var(--muted)}
-  .toast{position:fixed;left:50%;top:74px;transform:translateX(-50%);background:#0f1520;border:2px solid var(--edge);padding:6px 10px;font-size:11px}
-  @media (max-width:420px){ .badge{display:none} }
+  .btn{
+    --bgA:#7ef2c4; --bgB:#56d6ac; --shadow:#2b8b73;
+    padding:10px; border:0; box-shadow:0 3px 0 var(--shadow); background:linear-gradient(var(--bgA),var(--bgB));
+    cursor:pointer; image-rendering:pixelated;
+  }
+  .btn.alt{ --bgA:#ffd884; --bgB:#ffcf70; --shadow:#c19432 }
+  .btn.danger{ --bgA:#ff958f; --bgB:#ff6b64; --shadow:#a33c36 }
+  .btn.locked{ filter:grayscale(90%); opacity:.6; cursor:not-allowed }
+  .btn svg{width:28px;height:28px;display:block}
+  .under{font-size:10px;color:var(--muted);text-align:center;margin-top:6px}
+  .stack{display:flex;flex-direction:column;align-items:center}
 
-  /* Chomp animation helpers (we animate via JS by tweaking SVG parts) */
-  .hint{position:absolute;top:74px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted)}
+  .toast{position:fixed;left:50%;top:74px;transform:translateX(-50%);background:#0f1520;border:2px solid var(--edge);
+         padding:6px 10px;font-size:11px}
+
+  @media (max-width:420px){ .stat b{display:inline-block; min-width:64px} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="stat">🍪 Crumbs: <b id="crumbs">0</b></div>
+    <div class="stat"><span class="icon">🍪</span>Crumbs: <b id="crumbs">0</b></div>
     <div class="stat">CPS: <b id="cps">0</b></div>
     <div class="stat">Multiplier: <b id="mult">x1</b></div>
   </header>
 
-  <div class="main" id="main">
+  <div class="world" id="world">
     <div class="tiles"></div>
-    <div class="hint">Tap the Monster to CHOMP!</div>
+    <div class="shelf">
+      <div class="jar"></div>
+      <div class="milk"></div>
+      <div class="cookieJar"></div>
+    </div>
 
-    <!-- BIG BLUE PIXEL MONSTER (original character, cookie-chompy energy) -->
+    <div class="hint" id="hint">Tap the Monster to CHOMP!</div>
+
     <div class="monsterWrap">
+      <!-- BIG BLUE PIXEL MONSTER (original character, cookie-chompy energy) -->
       <svg id="monster" viewBox="0 0 128 128" tabindex="0" role="button" aria-label="Tap to chomp">
         <!-- body -->
         <g id="g-body">
           <rect x="12" y="40" width="104" height="76" fill="#1676a5" />
           <rect x="20" y="28" width="88" height="24" fill="#1676a5" />
-          <!-- shading blocks -->
           <rect x="20" y="44" width="20" height="12" fill="#14658e" />
           <rect x="40" y="60" width="16" height="10" fill="#14658e" />
           <rect x="84" y="68" width="18" height="12" fill="#14658e" />
-          <!-- arms -->
-          <rect x="4" y="64" width="20" height="20" fill="#1676a5" />
+          <rect x="4"  y="64" width="20" height="20" fill="#1676a5" />
           <rect x="104" y="64" width="20" height="20" fill="#1676a5" />
         </g>
         <!-- head -->
         <g id="g-head">
           <rect x="24" y="10" width="80" height="26" fill="#1676a5"/>
-          <!-- fuzzy top bumps -->
           <rect x="18" y="8" width="10" height="6" fill="#1676a5"/>
           <rect x="32" y="6" width="10" height="6" fill="#1676a5"/>
           <rect x="88" y="6" width="10" height="6" fill="#1676a5"/>
           <rect x="100" y="8" width="10" height="6" fill="#1676a5"/>
-          <!-- eyes -->
           <rect x="34" y="10" width="16" height="12" fill="#f5f7ff"/>
           <rect x="78" y="10" width="16" height="12" fill="#f5f7ff"/>
-          <rect x="44" y="16" width="6" height="6" fill="#121214"/>
-          <rect x="84" y="16" width="6" height="6" fill="#121214"/>
-          <!-- mouth (we animate height for "open") -->
+          <rect x="44" y="16" width="6"  height="6"  fill="#121214"/>
+          <rect x="84" y="16" width="6"  height="6"  fill="#121214"/>
           <rect id="mouth" x="36" y="26" width="56" height="12" fill="#0a0a0c"/>
         </g>
-        <!-- cookie in hand (we tween it towards mouth on click) -->
+        <!-- cookie in hand -->
         <g id="g-cookie">
           <rect x="24" y="86" width="20" height="16" fill="#b3733a"></rect>
-          <rect x="28" y="88" width="4" height="4" fill="#6b3a1e"></rect>
-          <rect x="36" y="94" width="4" height="4" fill="#6b3a1e"></rect>
-          <rect x="32" y="90" width="4" height="4" fill="#6b3a1e"></rect>
+          <rect x="28" y="88" width="4"  height="4"  fill="#6b3a1e"></rect>
+          <rect x="36" y="94" width="4"  height="4"  fill="#6b3a1e"></rect>
+          <rect x="32" y="90" width="4"  height="4"  fill="#6b3a1e"></rect>
         </g>
       </svg>
     </div>
   </div>
 
+  <!-- ICON SHOP -->
   <div class="shop">
-    <button class="pixel" id="buyAuto">Auto‑Plate (15) +0.5 cps</button>
-    <span class="badge">Owned: <span id="autoCount">0</span></span>
+    <div class="stack">
+      <button class="btn" id="autoBtn" title="Auto‑Plate: +0.5 cps">
+        <!-- plate icon -->
+        <svg viewBox="0 0 24 24">
+          <rect x="1" y="10" width="22" height="6" fill="#9fe7d0" />
+          <rect x="3" y="12" width="18" height="2" fill="#5dc5a4" />
+        </svg>
+      </button>
+      <div class="under">x<span id="autoCount">0</span> • <span id="autoCost">15</span></div>
+    </div>
 
-    <button class="pixel" id="buyOven">Oven (80) +2 cps</button>
-    <span class="badge">Owned: <span id="ovenCount">0</span></span>
+    <div class="stack">
+      <button class="btn" id="ovenBtn" title="Oven: +2 cps">
+        <!-- oven icon -->
+        <svg viewBox="0 0 24 24">
+          <rect x="2" y="4" width="20" height="16" fill="#b3d1d9"/>
+          <rect x="5" y="8" width="14" height="9"  fill="#23424c"/>
+          <rect x="7" y="6" width="10" height="2"  fill="#7aa0b8"/>
+        </svg>
+      </button>
+      <div class="under">x<span id="ovenCount">0</span> • <span id="ovenCost">80</span></div>
+    </div>
 
-    <button class="pixel alt" id="doubleDunk">Double Dunk (60) x2 for 10s</button>
-    <button class="pixel danger" id="chipStorm">Chip Storm (90) +4 per click 8s</button>
+    <div class="stack">
+      <button class="btn alt" id="dunkBtn" title="Double Dunk: x2 for 10s">
+        <!-- milk glass -->
+        <svg viewBox="0 0 24 24">
+          <rect x="7" y="4" width="10" height="16" fill="#e7f2ff"/>
+          <rect x="7" y="4" width="10" height="3"  fill="#cde8ff"/>
+        </svg>
+      </button>
+      <div class="under" id="dunkUnder"><span id="dunkCost">60</span></div>
+    </div>
+
+    <div class="stack">
+      <button class="btn danger" id="stormBtn" title="Chip Storm: +4 per click for 8s">
+        <!-- chip lightning -->
+        <svg viewBox="0 0 24 24">
+          <polygon points="10,2 5,12 11,12 7,22 19,9 12,9 17,2" fill="#ffb199" />
+        </svg>
+      </button>
+      <div class="under" id="stormUnder"><span id="stormCost">90</span></div>
+    </div>
   </div>
 </div>
 
 <script>
-  // ---------- State ----------
+  /* -------------------- State -------------------- */
   const S = { crumbs:0, cps:0, mult:1, bonusClick:0, auto:0, oven:0,
               costs:{auto:15, oven:80, dunk:60, storm:90}, dunkCD:0, stormCD:0 };
   const $ = s=>document.querySelector(s);
-  const main = $('#main'), monster = $('#monster');
-  const mouth = document.getElementById('mouth');
-  const gCookie = document.getElementById('g-cookie');
+
+  const world = $('#world');
+  const cookieJar = document.querySelector('.cookieJar').parentElement; // shelf as parent
+  const monster = $('#monster'), mouth = $('#mouth'), gCookie = $('#g-cookie');
+  const hint = $('#hint');
+
   const crumbsEl = $('#crumbs'), cpsEl = $('#cps'), multEl = $('#mult');
-  const autoCount = $('#autoCount'), ovenCount = $('#ovenCount');
-  const bAuto = $('#buyAuto'), bOven = $('#buyOven'), bDunk = $('#doubleDunk'), bStorm = $('#chipStorm');
+  const autoBtn = $('#autoBtn'), ovenBtn = $('#ovenBtn'), dunkBtn = $('#dunkBtn'), stormBtn = $('#stormBtn');
+  const autoCountEl = $('#autoCount'), ovenCountEl = $('#ovenCount');
+  const autoCostEl = $('#autoCost'), ovenCostEl = $('#ovenCost'), dunkUnder = $('#dunkUnder'), stormUnder = $('#stormUnder');
 
-  // Load save
-  try{ const save = JSON.parse(localStorage.getItem('cct_standalone_v1')||"null"); if(save) Object.assign(S, save); }catch(e){}
-  function save(){ localStorage.setItem('cct_standalone_v1', JSON.stringify(S)); }
+  /* -------------------- Save/Load -------------------- */
+  try{ const save = JSON.parse(localStorage.getItem('cct_ui_pass_v1')||"null"); if(save) Object.assign(S, save); }catch(e){}
+  function save(){ localStorage.setItem('cct_ui_pass_v1', JSON.stringify(S)); }
 
+  /* -------------------- UI Update -------------------- */
+  function format(n){ return Math.floor(n); }
   function updateUI(){
-    crumbsEl.textContent = Math.floor(S.crumbs);
+    crumbsEl.textContent = format(S.crumbs);
     cpsEl.textContent = S.cps.toFixed(1);
     multEl.textContent = 'x'+S.mult.toFixed(1).replace(/\.0$/,'');
-    autoCount.textContent = S.auto;
-    ovenCount.textContent = S.oven;
-    bAuto.textContent = `Auto‑Plate (${S.costs.auto}) +0.5 cps`;
-    bOven.textContent = `Oven (${S.costs.oven}) +2 cps`;
-    bDunk.textContent = S.dunkCD>0 ? `Double Dunk (${Math.ceil(S.dunkCD)}s)` : `Double Dunk (${S.costs.dunk}) x2 10s`;
-    bStorm.textContent = S.stormCD>0 ? `Chip Storm (${Math.ceil(S.stormCD)}s)` : `Chip Storm (${S.costs.storm}) +4 click 8s`;
-    bAuto.disabled   = S.crumbs < S.costs.auto;
-    bOven.disabled   = S.crumbs < S.costs.oven;
-    bDunk.disabled   = S.crumbs < S.costs.dunk || S.dunkCD>0;
-    bStorm.disabled  = S.crumbs < S.costs.storm || S.stormCD>0;
+    autoCountEl.textContent = S.auto; ovenCountEl.textContent = S.oven;
+    autoCostEl.textContent = S.costs.auto; ovenCostEl.textContent = S.costs.oven;
+    dunkUnder.textContent  = S.dunkCD>0 ? `${Math.ceil(S.dunkCD)}s` : S.costs.dunk;
+    stormUnder.textContent = S.stormCD>0 ? `${Math.ceil(S.stormCD)}s` : S.costs.storm;
+
+    toggleLock(autoBtn,  S.crumbs < S.costs.auto);
+    toggleLock(ovenBtn,  S.crumbs < S.costs.oven);
+    toggleLock(dunkBtn,  S.crumbs < S.costs.dunk || S.dunkCD>0);
+    toggleLock(stormBtn, S.crumbs < S.costs.storm || S.stormCD>0);
   }
+  function toggleLock(btn, locked){ btn.classList.toggle('locked', locked); btn.disabled = locked; }
   updateUI();
 
-  // ---------- Effects ----------
+  /* -------------------- FX -------------------- */
   function floatText(txt,x,y){
-    const d = document.createElement('div'); d.className='float'; d.textContent=txt;
-    d.style.left=(x-10)+'px'; d.style.top=(y-10)+'px'; d.style.opacity='1'; main.appendChild(d);
+    const d=document.createElement('div'); d.className='float'; d.textContent=txt;
+    d.style.left=(x-10)+'px'; d.style.top=(y-10)+'px'; d.style.opacity='1'; world.appendChild(d);
     const start=performance.now();
-    (function step(t){const k=Math.min(1,(t-start)/800); d.style.transform=`translateY(${-40*k}px)`; d.style.opacity=(1-k);
-      if(k<1) requestAnimationFrame(step); else d.remove();})(start);
+    (function step(t){ const k=Math.min(1,(t-start)/800); d.style.transform=`translateY(${-40*k}px)`; d.style.opacity=(1-k);
+      if(k<1) requestAnimationFrame(step); else d.remove(); })(start);
   }
   function crumbsBurst(x,y){
     for(let i=0;i<8;i++){
-      const c=document.createElement('div'); c.className='crumb'; c.style.left=x+'px'; c.style.top=y+'px'; main.appendChild(c);
+      const c=document.createElement('div'); c.className='crumb'; c.style.left=x+'px'; c.style.top=y+'px'; world.appendChild(c);
       const ang=Math.random()*Math.PI*2, sp=40+Math.random()*70; const start=performance.now();
-      (function step(t){const k=Math.min(1,(t-start)/700);
+      (function step(t){ const k=Math.min(1,(t-start)/700);
         const dx=Math.cos(ang)*sp*k; const dy=Math.sin(ang)*sp*k + 40*k*k;
-        c.style.transform=`translate(${dx}px,${dy}px)`; c.style.opacity=(1-k); if(k<1) requestAnimationFrame(step); else c.remove();})(start);
+        c.style.transform=`translate(${dx}px,${dy}px)`; c.style.opacity=(1-k); if(k<1) requestAnimationFrame(step); else c.remove(); })(start);
     }
   }
+  // sparkles
+  setInterval(()=>{ const s=document.createElement('div'); s.className='sparkle';
+    const r=world.getBoundingClientRect(); s.style.left=(r.width*0.2+Math.random()*r.width*0.6)+'px';
+    s.style.top=(40+Math.random()*100)+'px'; world.appendChild(s);
+    setTimeout(()=>s.remove(), 1200);
+  }, 1400);
 
-  // ---------- Chomp (click the SVG) ----------
-  let chompLock=false;
+  /* -------------------- Chomp -------------------- */
+  let firstChomp=false, chompLock=false;
   function chomp(x,y){
-    if(chompLock) return;
-    chompLock=true;
+    if(chompLock) return; chompLock=true;
+    if(!firstChomp){ hint.classList.add('off'); firstChomp=true; }
 
     const gain = Math.round((1 + S.bonusClick) * S.mult);
     S.crumbs += gain;
 
-    // Animate mouth and cookie-to-mouth tween
-    const openH = 24, closedH = 12;
-    mouth.setAttribute('height', openH);
-    gCookie.style.transition = 'transform 0.18s steps(3, end)';
-    gCookie.style.transformOrigin = '50% 50%';
-    gCookie.style.transform = 'translate(28px,-48px)';
+    // mouth & cookie tween
+    mouth.setAttribute('height', 24);
+    gCookie.style.transition='transform 0.18s steps(3,end)'; gCookie.style.transformOrigin='50% 50%';
+    gCookie.style.transform='translate(28px,-48px)';
 
-    floatText('+'+gain, x, y);
-    crumbsBurst(x,y);
-    updateUI(); save(); blip();
+    floatText('+'+gain, x, y); crumbsBurst(x,y); updateUI(); save(); blip();
 
     setTimeout(()=>{
-      mouth.setAttribute('height', closedH);
-      gCookie.style.transform = 'translate(0,0)';
+      mouth.setAttribute('height', 12);
+      gCookie.style.transform='translate(0,0)';
       setTimeout(()=>{ chompLock=false; }, 120);
     }, 180);
   }
-
-  monster.addEventListener('pointerdown', e=> chomp(e.clientX, e.clientY));
+  monster.addEventListener('pointerdown', e=>chomp(e.clientX, e.clientY));
   window.addEventListener('keydown', e=>{
     if(e.code==='Space' || e.code==='Enter'){
-      const r=main.getBoundingClientRect();
+      const r=world.getBoundingClientRect();
       chomp(r.left+r.width*0.5, r.top+r.height*0.6);
     }
   });
 
-  // ---------- Shop ----------
+  /* -------------------- Shop -------------------- */
   function recalcCPS(){ S.cps = S.auto*0.5 + S.oven*2; }
-  bAuto.addEventListener('click',()=>{
+  autoBtn.addEventListener('click', ()=>{
     if(S.crumbs>=S.costs.auto){
       S.crumbs-=S.costs.auto; S.auto++; S.costs.auto=Math.ceil(S.costs.auto*1.6);
       recalcCPS(); updateUI(); save(); pop('Bought Auto‑Plate +0.5 cps');
     }
   });
-  bOven.addEventListener('click',()=>{
+  ovenBtn.addEventListener('click', ()=>{
     if(S.crumbs>=S.costs.oven){
       S.crumbs-=S.costs.oven; S.oven++; S.costs.oven=Math.ceil(S.costs.oven*1.7);
       recalcCPS(); updateUI(); save(); pop('Bought Oven +2 cps');
     }
   });
-  bDunk.addEventListener('click',()=>{
+  dunkBtn.addEventListener('click', ()=>{
     if(S.crumbs>=S.costs.dunk && S.dunkCD<=0){
       S.crumbs-=S.costs.dunk; S.mult*=2; S.dunkCD=30; updateUI(); save();
       pop('Double Dunk x2!'); setTimeout(()=>{ S.mult/=2; updateUI(); pop('Double Dunk ended'); }, 10000);
     }
   });
-  bStorm.addEventListener('click',()=>{
+  stormBtn.addEventListener('click', ()=>{
     if(S.crumbs>=S.costs.storm && S.stormCD<=0){
       S.crumbs-=S.costs.storm; S.bonusClick+=4; S.stormCD=35; updateUI(); save();
       pop('Chip Storm +4 per click!'); setTimeout(()=>{ S.bonusClick-=4; updateUI(); pop('Chip Storm ended'); }, 8000);
     }
   });
 
-  // ---------- Idle tick + Cookie Rain ----------
+  /* -------------------- Idle + Events -------------------- */
   recalcCPS(); updateUI();
-  let last = performance.now(); let rainTimer=10; // first rain appears soon
+  let last=performance.now(), rainTimer=10;
   function loop(now){
     const dt=(now-last)/1000; last=now;
     if(S.cps>0){ S.crumbs += S.cps*dt; }
@@ -260,7 +333,9 @@
     if(S.dunkCD>0 || S.stormCD>0) updateUI();
 
     rainTimer -= dt;
-    if(rainTimer<=0){ startRainEvent(); rainTimer = 45 + Math.random()*15; }
+    if(rainTimer<=0){ startRainEvent(); rainTimer = 40 + Math.random()*20; }
+    // random cookie jar lid pop for life
+    if(Math.random()<0.002) cookieJar.classList.add('pop'), setTimeout(()=>cookieJar.classList.remove('pop'), 900);
 
     crumbsEl.textContent = Math.floor(S.crumbs);
     cpsEl.textContent = S.cps.toFixed(1);
@@ -270,33 +345,29 @@
 
   function startRainEvent(){
     pop('Cookie Rain! Tap falling cookies!');
-    const duration = 9, start=performance.now();
+    const duration=9, start=performance.now();
     (function spawn(){
       if(performance.now()-start > duration*1000) return;
       drop(); setTimeout(spawn, 280);
     })();
   }
-
   function drop(){
     const d=document.createElement('div'); d.className='drop';
-    const area=main.getBoundingClientRect();
-    const x = 20 + Math.random()*(area.width-40); d.style.left=x+'px'; d.style.top='-30px';
-    main.appendChild(d);
-    const fall = area.height + 40; const speed = 90 + Math.random()*60;
-    const born = performance.now();
+    const area=world.getBoundingClientRect();
+    const x=20+Math.random()*(area.width-40); d.style.left=x+'px'; d.style.top='-30px';
+    world.appendChild(d);
+    const fall=area.height+40; const speed=90+Math.random()*60; const born=performance.now();
     function step(t){
-      const k = (t-born)/1000; d.style.transform = `translateY(${k*speed}px)`;
-      if(k*speed > fall) { d.remove(); return; }
-      requestAnimationFrame(step);
+      const k=(t-born)/1000; d.style.transform=`translateY(${k*speed}px)`;
+      if(k*speed>fall){ d.remove(); return; } requestAnimationFrame(step);
     } requestAnimationFrame(step);
     d.addEventListener('pointerdown', e=>{
-      e.stopPropagation();
-      const add = Math.round(5 * S.mult);
-      S.crumbs += add; floatText('+'+add, e.clientX, e.clientY); d.remove(); blip(880); updateUI(); save();
+      e.stopPropagation(); const add=Math.round(5*S.mult);
+      S.crumbs+=add; floatText('+'+add, e.clientX, e.clientY); d.remove(); blip(880); updateUI(); save();
     });
   }
 
-  // ---------- UI helpers + audio ----------
+  /* -------------------- Mini helpers -------------------- */
   function pop(msg){
     const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
     document.body.appendChild(t); setTimeout(()=>t.remove(), 1600);
@@ -305,7 +376,7 @@
   function blip(freq=660){
     try{
       audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
       o.type='square'; o.frequency.value=freq; g.gain.value=0.03; o.connect(g); g.connect(audioCtx.destination); o.start();
       setTimeout(()=>{ g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+0.08); o.stop(audioCtx.currentTime+0.09); }, 0);
     }catch(e){}
